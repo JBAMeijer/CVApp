@@ -14,7 +14,7 @@ pub fn main() !void {
     const screen_width = 1280;
     const screen_height = 800;
 
-    rl.initWindow(screen_width, screen_height, "Test");
+    rl.initWindow(screen_width, screen_height, "CVApp");
     defer rl.closeWindow();
 
     rl.setTargetFPS(60);
