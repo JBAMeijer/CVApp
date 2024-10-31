@@ -2,11 +2,13 @@ const std = @import("std");
 const rl = @import("raylib");
 const rg = @import("raygui");
 const c = @cImport({
+    @cInclude("amber/style_amber.h");
     @cDefine("GUI_WINDOW_FILE_DIALOG_IMPLEMENTATION", {});
     @cInclude("gui_window_file_dialog.h");
 });
 
 const Texture = rl.Texture;
+const Rectangle = rl.Rectangle;
 
 pub fn main() !void {
     const screen_width = 1280;
@@ -16,12 +18,17 @@ pub fn main() !void {
     defer rl.closeWindow();
 
     rl.setTargetFPS(60);
+    c.GuiLoadStyleAmber();
 
     var file_dialog_state = c.InitGuiWindowFileDialog(c.GetWorkingDirectory());
     var file_name_to_load: [3300:0]u8 = undefined;
     var texture: Texture = undefined;
 
     @memset(&file_name_to_load, 0);
+
+    // init rectangles
+    const gui_panel_1 = Rectangle.init(0, 0, screen_width, 40);
+    const image_load_button = Rectangle.init(10, 8, 24, 24);
 
     while (!rl.windowShouldClose()) {
         if (file_dialog_state.SelectFilePressed) {
@@ -42,28 +49,34 @@ pub fn main() !void {
 
         if (rl.isFileDropped()) {
             const dropped_files = rl.loadDroppedFiles();
-            std.debug.print("files dropped", .{});
+            std.debug.print("files dropped\n", .{});
             for (0..dropped_files.count) |index| {
-                std.debug.print("Path: {s}", .{dropped_files.paths[index]});
+                std.debug.print("Path: {s}\n", .{dropped_files.paths[index]});
             }
+
+            rl.unloadTexture(texture);
+            texture = rl.loadTexture(dropped_files.paths[0]);
             rl.unloadDroppedFiles(dropped_files);
         }
 
         rl.beginDrawing();
         defer rl.endDrawing();
 
-        rl.clearBackground(rl.Color.dark_blue);
+        const background_color: i32 = @intFromEnum(rg.GuiDefaultProperty.background_color);
+        rl.clearBackground(rl.getColor(@intCast(rg.guiGetStyle(.default, background_color))));
+
+        rl.gl.rlPushMatrix();
+        rl.gl.rlTranslatef(0, 25 * 50, 0);
+        rl.gl.rlRotatef(90, 1, 0, 0);
+        rl.drawGrid(100, 30);
+        rl.gl.rlPopMatrix();
+
+        _ = rg.guiPanel(gui_panel_1, null);
 
         rl.drawTexture(texture, screen_width / 2 - @divTrunc(texture.width, 2), screen_height / 2 - @divTrunc(texture.height, 2) - 5, rl.Color.white);
-        // rl.drawText("start!", 190, 200, 20, rl.Color.light_gray);
-
-        // const span_file_name = std.mem.span(file_name_to_load[0..file_name_to_load.len :0].ptr);
-        // _ = span_file_name;
-        rl.drawText(&file_name_to_load, 208, screen_height - 20, 10, rl.Color.gray);
-
         if (file_dialog_state.windowActive) rg.guiLock();
 
-        if (rg.guiButton(rl.Rectangle.init(20, 20, 140, 30), rg.guiIconText(@intFromEnum(rg.GuiIconName.icon_file_open), "open image")) != 0) file_dialog_state.windowActive = true;
+        if (rg.guiButton(image_load_button, rg.guiIconText(@intFromEnum(rg.GuiIconName.icon_file_open), "")) != 0) file_dialog_state.windowActive = true;
 
         rg.guiUnlock();
 
